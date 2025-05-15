@@ -1,0 +1,5 @@
+from .pointing_rewards.Pointing_rewards import Pointing_rewards
+from .pointing_smaller_targets.Pointing_smaller_targets import Pointing_smaller_targets
+from .pointing_reach_envelope.Pointing_reach_envelope import Pointing_reach_envelope
+from .pointing_horizontal_target_area.Pointing_horizontal_target_area import Pointing_horizontal_target_area
+from .pointing_distractor.Pointing_distractor import Pointing_distractor
