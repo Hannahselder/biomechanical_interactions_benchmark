@@ -3,7 +3,7 @@ import pickle
 import pandas as pd
 import numpy as np
 
-def create_filename(bonus, distance, effort_model, run_nr, task):
+def create_filename(bonus, distance, effort_model, run_nr, task, variation):
     if bonus == 50:
         filename = f"mobl_arms_index_{task}_hit_bonus_50"
     else:
@@ -14,10 +14,11 @@ def create_filename(bonus, distance, effort_model, run_nr, task):
 
     filename += f"_{effort_model}"
 
-    if run_nr == None:
-        filename += f"/evaluate"
-    else:
-        filename += f"/evaluate_{run_nr}"
+    filename += f"/evaluate"
+    if variation != None:
+        filename += "_" + variation
+    if run_nr != None:
+        filename += "_" + str(run_nr)
 
     return filename
 
@@ -83,7 +84,7 @@ def create_df_remote_control(rewards):
     })
     return df
 
-def create_df(boni, effort_models, distances, DIRNAME_SIMULATION, run_nr, task = "choice_reaction"):
+def create_df(boni, effort_models, distances, DIRNAME_SIMULATION, run_nr, task, variation=None):
     columns = ["bonus", "effort_model", "distance", "episode", "success_rate", "task_completion_time", "current_button", "initial_position"]
     results_df = pd.DataFrame(columns=columns)
     
@@ -91,7 +92,7 @@ def create_df(boni, effort_models, distances, DIRNAME_SIMULATION, run_nr, task =
         for effort_model in effort_models:
             for distance in distances:
 
-                filename = create_filename(bonus, distance, effort_model, run_nr, task)         
+                filename = create_filename(bonus, distance, effort_model, run_nr, task, variation)         
                 filepath = os.path.join(DIRNAME_SIMULATION, f"{filename}")
                 full_path = os.path.join(filepath, "state_log.pickle")
 
@@ -142,13 +143,18 @@ def create_sparse_df_tracking(effort_models):
 
     return results_df
 
-def create_sparse_df_pointing(effort_models, DIRNAME_SIMULATION, run_nr):
+def create_sparse_df_pointing(effort_models, DIRNAME_SIMULATION, run_nr, variation=None):
     columns = ["bonus", "effort_model", "distance", "episode", "success_rate", "task_completion_time", "current_button", "initial_position"]
     results_df = pd.DataFrame(columns=columns)
 
     for bonus in [8]:
         for effort in ["zero_effort"]:
-            folder = os.path.join(DIRNAME_SIMULATION, f"mobl_arms_index_pointing_hit_bonus_{bonus}_{effort}/evaluate_{run_nr}/")
+            folder = os.path.join(DIRNAME_SIMULATION, f"mobl_arms_index_pointing_hit_bonus_{bonus}_{effort}/evaluate")
+            
+            if variation != None:
+                folder += "_" + variation
+            if run_nr != None:
+                folder += "_" + str(run_nr)
 
             with open(os.path.join(folder, "state_log.pickle"), "rb") as f:
                 data = pickle.load(f)

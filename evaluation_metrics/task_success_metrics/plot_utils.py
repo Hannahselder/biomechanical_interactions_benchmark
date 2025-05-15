@@ -149,6 +149,7 @@ def plot_task_completion_time_choice_reaction(data_df, colors):
         ax.bar(idx, row['task_completion_time'], color=colors[row['distance']])
         effort_models.append(row["effort_model"])
 
+
     ax.tick_params(axis='y', labelsize=fontsize)
     ax.tick_params(axis='x', labelsize=fontsize)
     effort_names = [effort_map[e] for e in effort_models]
