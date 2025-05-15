@@ -153,4 +153,4 @@ def plot_first_button(data, effort_model, distance):
     return all_velocities, all_times, NPEs
     
 if __name__ == '__main__':
-    plot_velocities_combinations(["hit"], ["zero_effort"], ["ist"], "../simulators/seed1/")
+    plot_velocities_combinations(["hit"], ["zero_effort"], ["dist"], "../simulators/")

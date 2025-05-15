@@ -66,5 +66,5 @@ def return_peaks(all_times, velocities, NPEs):
     plt.show()
 
 if __name__ == '__main__':
-    all_times, all_velocities, NPEs = plot_velocities_combinations(['distance_and_completion_bonus', 'distance_and_completion_bonus_and_joystick_reaching_bonus', 'only_distance', 'only_bonus'], "../simulators/remote_driving/")
+    all_times, all_velocities, NPEs = plot_velocities_combinations(['only_bonus'], "../simulators/")
     return_peaks(all_times, all_velocities, NPEs)

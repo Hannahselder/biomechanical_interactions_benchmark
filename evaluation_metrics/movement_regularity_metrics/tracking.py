@@ -63,6 +63,5 @@ def return_peaks(velocities, NPE):
     plt.show()
 
 if __name__ == '__main__':
-    effort_models = ["zero_effort", "dc_effort_w1", "jac_effort_w1", "ctc_effort_w1", "armmovementpaper_effort"]
-    all_velocities, NPE = plot_velocities_combinations(["hit"], ["zero_effort"], ["dist"], "../simulators/tracking/")
+    all_velocities, NPE = plot_velocities_combinations(["hit"], ["zero_effort"], ["dist"], "../simulators/")
     return_peaks(all_velocities, NPE)

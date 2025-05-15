@@ -46,11 +46,11 @@ def print_reward_threshholds(steps, rewards):
     max_reward = max(rewards)
     threshold2_index = index_at_threshold(rewards, 0.2 * max_reward)
     threshold5_index = index_at_threshold(rewards, 0.5 * max_reward)
-    threshold8_index = index_at_threshold(rewards, 0.8 * max_reward)
-    threshold9_index = index_at_threshold(rewards, 0.9 * max_reward)
+    threshold8_index = index_at_threshold(rewards, 0.9 * max_reward)
+    threshold9_index = index_at_threshold(rewards, max_reward)
     max_index = index_at_threshold(rewards, max_reward)
     print(f'Maximum of rewards: {max_reward}')
-    print(f'Threshold Index 20%: {steps[threshold2_index]} steps, 50%: {steps[threshold5_index]}, 80%: {steps[threshold8_index]}, 90%: {steps[threshold9_index]}')
+    print(f'Threshold Index 20%: {steps[threshold2_index]} steps, 50%: {steps[threshold5_index]}, 90%: {steps[threshold8_index]}, 100%: {steps[threshold9_index]}')
     print(f'Maximum Index: {steps[max_index]} steps')
 
     normalized_rewards = (np.array(rewards) - min(rewards)) / (max(rewards) - min(rewards))
@@ -77,10 +77,11 @@ def variance_last_steps(steps, rewards):
     else:
         print(f"Reward does not increase in trend (slope = {slope:.4f})")
 
-def plot_reward(steps, rewards):
+def plot_reward(steps, rewards, task, figname):
     steps, rewards = zip(*sorted(zip(steps, rewards)))
     plt.plot(steps, (np.array(rewards) - min(rewards)) / (max(rewards) - min(rewards)))
     plt.xlabel('Global Step')
     plt.ylabel('Reward')
-    #plt.savefig("reward.png")
+    plt.title(task)
+    plt.savefig(f"reward_plots/{figname}.png")
     plt.show()

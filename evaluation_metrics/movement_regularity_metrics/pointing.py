@@ -4,13 +4,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter, find_peaks
 
-def plot_velocities_combinations(boni, effort_models, distances, DIRNAME_SIMULATION):
+def plot_velocities_combinations(boni, effort_models, distances, DIRNAME_SIMULATION, variant=None):
 
     for bonus in boni:
         for effort_model in effort_models:
             for distance in distances:
-                filename = f"mobl_arms_index_pointing_{bonus}_bonus_{distance}_{effort_model}/evaluate_1"
-                filepath = os.path.join(DIRNAME_SIMULATION, f"{filename}")
+                filename = f"mobl_arms_index_pointing_{bonus}_bonus_{distance}_{effort_model}/evaluate"
+                if variant != None:
+                    filename += "_" + variant
+                filepath = os.path.join(DIRNAME_SIMULATION, f"{filename}_1")
                 with open(os.path.join(filepath, "state_log.pickle"), "rb") as f:
                     data = pickle.load(f)
                 
@@ -19,8 +21,6 @@ def plot_velocities_combinations(boni, effort_models, distances, DIRNAME_SIMULAT
                 NPEs = []
                 
                 for episode, episode_data in data.items():
-                    print(episode_data.keys())
-
                     times = episode_data['timestep']
                     timestep = times[1] - times[0]
                     target_positions = episode_data["target_position"]
@@ -49,13 +49,12 @@ def plot_velocities_combinations(boni, effort_models, distances, DIRNAME_SIMULAT
                 plt.title(f"{effort_model}_{distance}_first_target_all_episodes_speed")
                 plt.xlabel("Time (s)")
                 plt.ylabel("Speed (m/s)")
-                #plt.legend()
-                #plt.show()
-                #plt.clf()
                 return all_times, all_velocities, NPEs
 
-def return_peaks(all_times, all_velocities, NPEs):
+def return_peaks(all_times, all_velocities, NPEs, variant=None):
     i = 0
+    submovement_count = []
+    RTPs = []
     for vel in all_velocities:
         peaks, _ = find_peaks(vel, prominence=0.05)
         valleys, _ = find_peaks(-vel, prominence=0.05)
@@ -69,15 +68,62 @@ def return_peaks(all_times, all_velocities, NPEs):
             RTP = (time_end - all_times[i][valleys[0]])/time_end
             plt.plot(all_times[i][peaks], vel[peaks], "x", label="Maxima")
             plt.plot(all_times[i][valleys], vel[valleys], "o", label="Minima")
-            print('Number of Peaks:', len(peaks),'Number of Valleys:',  len(valleys), "RTP: ", RTP, "NPE: ", NPEs[i])
-        else:
-            print('Number of Peaks', len(peaks),'Number of Valleys',  len(valleys), "NPE: ", NPEs[i])
-
+            RTPs.append(RTP)
+        if 0 not in valleys:
+            valleys = np.insert(valleys, 0, 0)
+        extrema = np.sort(np.concatenate([peaks, valleys]))
+        types = ['max' if i in peaks else 'min' for i in extrema]
+        count = sum(types[i:i+3] == ['min', 'max', 'min'] for i in range(len(types)-2))
+        submovement_count.append(count)
         plt.plot(all_times[i], vel)
         i+= 1
-    plt.show()
+
+    figname = "speed_plots/pointing_speed"
+    if variant != None:
+        figname += "_" + variant
+    plt.savefig(figname)
+    plt.clf()
+
+    return RTPs, submovement_count
                 
 if __name__ == '__main__':
-    effort_models = ["zero_effort", "dc_effort_w1", "jac_effort_w1", "ctc_effort_w1", "armmovementpaper_effort"]
-    all_times, all_velocities, NPEs = plot_velocities_combinations(["hit"], ["zero_effort"], ["dist"], "../simulators/pointing_all/")
-    return_peaks(all_times, all_velocities, NPEs)
+    all_NPEs = {}
+    all_submovement_counts = {}
+    variations = ["horizontal_target_area", "smaller_targets", "reach_envelope", "distractor"]
+    plt.rcParams.update({'font.size': 15})
+
+    all_times, all_velocities, NPEs = plot_velocities_combinations(["hit"], ["zero_effort"], ["dist"], "../../simulators/")
+    RTPs, submovement_count = return_peaks(all_times, all_velocities, NPEs)
+    all_NPEs["default"] = np.mean(NPEs)
+    all_submovement_counts["default"] = np.mean(submovement_count)
+    
+    for v in variations:
+        all_times, all_velocities, NPEs = plot_velocities_combinations(["hit"], ["zero_effort"], ["dist"], "../../simulators/", variant=v)
+        RTPs, submovement_count = return_peaks(all_times, all_velocities, NPEs, variant=v)
+        all_NPEs[v] = np.mean(NPEs)
+        all_submovement_counts[v] = np.mean(submovement_count)
+    
+    fig, ax = plt.subplots(figsize=(6.8, 4))
+    i = 0
+    for key, value in all_NPEs.items():
+        ax.scatter(i/4, value, label=key, s=200)
+        i += 1
+    plt.title("Pointing variations")
+    plt.yticks(fontsize=15)
+    plt.xticks([])
+    plt.xlabel("Task Variant", fontsize=15)
+    plt.ylabel("NPE (%)", fontsize=15)
+    plt.savefig("NPE/NPE_pointing_variants.png")
+
+    fig, ax = plt.subplots(figsize=(6.8, 4))
+    i = 0
+    for key, value in all_submovement_counts.items():
+        ax.scatter(i/4, value, label=key, s=200)
+        i += 1
+    plt.legend()
+    plt.title("Pointing variations")
+    plt.yticks(fontsize=15)
+    plt.xticks([])
+    plt.xlabel("Task Variant", fontsize=15)
+    plt.ylabel("Number of submovements", fontsize=15)
+    plt.savefig("Nr_of_submovements/Nr_of_submovements_pointing_variants.png")

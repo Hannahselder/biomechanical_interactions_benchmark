@@ -155,7 +155,6 @@ def create_sparse_df_pointing(effort_models, DIRNAME_SIMULATION, run_nr, variati
                 folder += "_" + variation
             if run_nr != None:
                 folder += "_" + str(run_nr)
-
             with open(os.path.join(folder, "state_log.pickle"), "rb") as f:
                 data = pickle.load(f)
 
@@ -203,7 +202,7 @@ def create_row_pointing(bonus, effort_model, distance, episode, episode_data):
     success = sum(episode_data['target_hit'])
     hit_indices = [i for i, hit in enumerate(episode_data['target_hit']) if hit]
     if not hit_indices:
-        deviation_count = None
+        deviation_count = len(episode_data['inside_target'])
     else:
         deviation_count = 0
 
