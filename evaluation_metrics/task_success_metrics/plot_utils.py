@@ -111,42 +111,56 @@ def plot_success_rate_remote_control(df):
 
 def plot_success_rate_choice_reaction(data_df, colors):
 
-    legend_labels = [
-        mlines.Line2D([0], [0], color=colors['dist'], lw=4, label='absolute distance'),
-        mlines.Line2D([0], [0], color=colors['zero'], lw=4, label='no distance'),
-        mlines.Line2D([0], [0], marker='o', color='black', markersize=8, label='with bonus', lw=0),
-        mlines.Line2D([0], [0], marker='+', color='black', markersize=8, label='without bonus', lw=0)
-    ]
-    plt.figure(figsize=(7, 5))
-    markers = {"no_bonus": "+", "hit_bonus": "o", 8: "o"}
+    legend_labels = []
+    for key in colors.keys():
+        legend_labels.append(mlines.Line2D([0], [0], color=colors[key], lw=4, label=key))
+    fig, ax = plt.subplots(figsize=figsize)
 
     result = data_df.groupby(['effort_model', 'bonus', 'distance'], as_index=False)['success_rate'].mean()
     effort_models = []
 
     for idx, row in result.iterrows():
-        plt.plot(idx, row['success_rate'], color=colors[row['distance']], marker=markers[row['bonus']], markersize=12)
+        if row['bonus'] == "no_bonus":
+            color = colors['Distance']
+        elif row['bonus'] == 8:
+            color = colors['Bonus']
+        else:
+            if row['effort_model'] == 'zero_effort':
+                color = colors['Distance + Bonus']
+            else:
+                color = colors['Distance + Bonus + Effort Model']
+
+        ax.bar(idx, row['success_rate'], color=color)
         effort_models.append(row["effort_model"])
 
-    fontsize = 16
     plt.rcParams.update({'font.size': fontsize})
     plt.title('Choice Reaction Task')
     plt.yticks(fontsize=fontsize)
     plt.xlabel("Effort model", fontsize=fontsize)
     plt.ylabel("Success rate(%)", fontsize=fontsize)
-    plt.legend(handles=legend_labels, title="Reward components", prop={'size': 12}, bbox_to_anchor=(0.46,0.55))
+    plt.legend(handles=legend_labels, title="Reward components", prop={'size': 12}, loc = 'lower left')
     effort_names = [effort_map[e] for e in effort_models]
     indices = np.arange(0, len(effort_names), 1)
     plt.xticks(ticks=indices, labels=effort_names, fontsize=fontsize)
-    plt.savefig("success_rate_plots/success_rates_choice_reaction.png")#, bbox_inches="tight", pad_inches=0.1)
+    plt.savefig("success_rate_plots/success_rates_choice_reaction.png", bbox_inches="tight")
     plt.show()
 
 def plot_task_completion_time_choice_reaction(data_df, colors):
     fig, ax = plt.subplots(figsize=(7, 5))
-    result = data_df.groupby(['effort_model', 'distance'], as_index=False)['task_completion_time'].mean()
+    result = data_df.groupby(['effort_model', 'distance', 'bonus'], as_index=False)['task_completion_time'].mean()
     effort_models = []
 
     for idx, row in result.iterrows():
-        ax.bar(idx, row['task_completion_time'], color=colors[row['distance']])
+        if row['bonus'] == "no_bonus":
+            color = colors['Distance']
+        elif row['bonus'] == 8:
+            color = colors['Bonus']
+        else:
+            if row['effort_model'] == 'zero_effort':
+                color = colors['Distance + Bonus']
+            else:
+                color = colors['Distance + Bonus + Effort Model']
+        ax.bar(idx, row['task_completion_time'], color=color)
         effort_models.append(row["effort_model"])
 
 
@@ -271,6 +285,61 @@ def plot_cum_dist(plot_type, figname, colors, markers, data_df):
     indices = np.arange(0, len(effort_names), 1)
     plt.xticks(ticks=indices, labels=effort_names, fontsize=fontsize)
     plt.savefig(f'cumulative_distance_plots/{figname}')
+
+def plot_end_point_dist(plot_type, figname, colors, markers, data_df):
+    result = data_df.groupby(['effort_model', 'bonus', 'distance'], as_index=False)['end_point_distances'].mean()
+    effort_models = []
+    plt.figure(figsize=figsize)
+    for idx, row in result.iterrows():
+        if row['bonus'] == 8:
+            row['bonus'] = 'hit_bonus'
+        plt.plot(idx, row['end_point_distances'], color=colors[row['distance']], marker=markers[row['bonus']], markersize=markersize)
+        effort_models.append(row["effort_model"])
+
+
+    plt.rcParams.update({'font.size': fontsize})
+    if plot_type == "tracking":
+        plt.yscale("log") 
+    plt.yticks(fontsize=fontsize)
+    plt.title(f'{plot_type} Task')
+    plt.xlabel("Effort model", fontsize=fontsize)
+    plt.ylabel("Endpoint distance (m)", fontsize=fontsize)
+    effort_names = [effort_map[e] for e in effort_models]
+    indices = np.arange(0, len(effort_names), 1)
+    plt.xticks(ticks=indices, labels=effort_names, fontsize=fontsize)
+    plt.savefig(f'end_point_distance_plots/{figname}')
+
+def plot_end_point_dist_choice_reaction(plot_type, figname, colors, markers, data_df):
+    result = data_df.groupby(['effort_model', 'bonus', 'distance'], as_index=False)['end_point_distances'].mean()
+    effort_models = []
+    fig, ax = plt.subplots(figsize=(7, 5))
+    for idx, row in result.iterrows():
+        if row['bonus'] == "no_bonus":
+            color = colors['Distance']
+        elif row['bonus'] == 8:
+            color = colors['Bonus']
+        else:
+            if row['effort_model'] == 'zero_effort':
+                color = colors['Distance + Bonus']
+            else:
+                color = colors['Distance + Bonus + Effort Model']
+        if row['bonus'] == 8:
+            row['bonus'] = 'hit_bonus'
+        ax.bar(idx, row['end_point_distances'], color=color)
+        effort_models.append(row["effort_model"])
+
+
+    plt.rcParams.update({'font.size': fontsize})
+    if plot_type == "tracking":
+        plt.yscale("log") 
+    plt.yticks(fontsize=fontsize)
+    plt.title(f'{plot_type} Task')
+    plt.xlabel("Effort model", fontsize=fontsize)
+    plt.ylabel("Endpoint distance (m)", fontsize=fontsize)
+    effort_names = [effort_map[e] for e in effort_models]
+    indices = np.arange(0, len(effort_names), 1)
+    plt.xticks(ticks=indices, labels=effort_names, fontsize=fontsize)
+    plt.savefig(f'end_point_distance_plots/{figname}', bbox_inches="tight")
 
 def plot_fittslaw(data_df):
 

@@ -201,6 +201,18 @@ def create_row_pointing(bonus, effort_model, distance, episode, episode_data):
 
     success = sum(episode_data['target_hit'])
     hit_indices = [i for i, hit in enumerate(episode_data['target_hit']) if hit]
+    indices_target_spawned = [i for i, spawned in enumerate(episode_data['target_spawned']) if spawned]
+
+    end_point_distances = []
+    for idx in indices_target_spawned:
+        if not episode_data['inside_target'][idx]:
+            end_point_distances.append(np.linalg.norm(np.array(episode_data["hand_2distph_xpos"][idx]) - np.array(episode_data["target_position"][idx])))
+
+    if len(end_point_distances) < 1:
+        end_point_distance_mean = 0
+    else:
+        end_point_distance_mean = np.mean(end_point_distances)
+
     if not hit_indices:
         deviation_count = len(episode_data['inside_target'])
     else:
@@ -224,7 +236,6 @@ def create_row_pointing(bonus, effort_model, distance, episode, episode_data):
 
     completion_times_split = []
     current_segment = []
-    indices_target_spawned = [i for i, spawned in enumerate(episode_data['target_spawned']) if spawned]
     for i, new_target in enumerate(episode_data['target_spawned']):
         if new_target:
             completion_times_split.append(np.array(current_segment))
@@ -292,7 +303,8 @@ def create_row_pointing(bonus, effort_model, distance, episode, episode_data):
         "target_radiuses": target_radiuses,
         "start_distances": start_distances,
         "deviation_count": deviation_count,
-        "cum_distance": cum_dist
+        "cum_distance": cum_dist,
+        "end_point_distances": end_point_distance_mean
     }
 
     return new_row
@@ -323,7 +335,19 @@ def create_row_tracking(bonus, effort_model, distance, episode, episode_data):
 
 def create_row_choice_reaction(bonus, effort_model, distance, episode, episode_data):
     shoulder_pos = np.array([0.02, -0.31, 0.938])
-    target_positions = {"button-0":  np.array([0.41, -0.07, -0.15]) + shoulder_pos, "button-1": np.array([0.41, 0.07, -0.15]) + shoulder_pos, "button-2": np.array([0.5, -0.07, -0.05]) + shoulder_pos, "button-3": np.array([0.5, 0.07, -0.05]) + shoulder_pos}
+    target_positions = {"button-0":  np.array([0.41, -0.07, -0.15]) + shoulder_pos, "button-1": np.array([0.41, 0.07, -0.15]) + shoulder_pos, "button-2": np.array([0.5, -0.07, -0.05]) + shoulder_pos, "button-3": np.array([0.5, 0.07, -0.05]) + shoulder_pos,
+                        "button-4": np.array([0.482445 ,-0.38 ,0.943]),"button-5": np.array([0.392445 ,-0.38 ,0.843])}
+    indices_target_spawned = [i for i, spawned in enumerate(episode_data['new_button_generated']) if spawned]
+    end_point_distances = []
+    for idx in indices_target_spawned:
+        if not episode_data['target_hit'][idx]:
+            end_point_distances.append(np.linalg.norm(np.array(episode_data["hand_2distph_xpos"][idx]) - np.array(target_positions[episode_data["current_button"][idx]])))
+
+    if len(end_point_distances) < 1:
+        end_point_distance_mean = 0
+    else:
+        end_point_distance_mean = np.mean(end_point_distances)
+   
     if sum(episode_data['target_hit']) == 0:
         durations = 4*np.ones(10)
     else:
@@ -344,6 +368,7 @@ def create_row_choice_reaction(bonus, effort_model, distance, episode, episode_d
         "hand_2distph_xpos": episode_data["hand_2distph_xpos"],
         "task_completion_time":sum(durations)/10, 
         "target_positions": [target_positions[btn] for btn in episode_data["current_button"]],
-        "cum_distance": np.sum(np.linalg.norm(np.array([target_positions[btn] for btn in episode_data["current_button"]]) - np.array(episode_data["hand_2distph_xpos"]), axis=1))
+        "cum_distance": np.sum(np.linalg.norm(np.array([target_positions[btn] for btn in episode_data["current_button"]]) - np.array(episode_data["hand_2distph_xpos"]), axis=1)),
+        "end_point_distances": end_point_distance_mean
     }     
     return new_row
