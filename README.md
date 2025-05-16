@@ -53,7 +53,7 @@ This repository includes tools for assessing policies using metrics from three k
 
 - **Task Success**  
 - **Movement Regularity**  
-- **Training Efficiency**
+- **Training Efficacy & Efficiency**
 
 These metrics allow for a comparison of different policies on one task or one policy on the task variations. 
 
