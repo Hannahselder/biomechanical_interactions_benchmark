@@ -147,7 +147,7 @@ def plot_success_rate_choice_reaction(data_df, colors):
 
 def plot_task_completion_time_choice_reaction(data_df, colors):
     fig, ax = plt.subplots(figsize=(7, 5))
-    result = data_df.groupby(['effort_model', 'distance', 'bonus'], as_index=False)['task_completion_time'].mean()
+    result = data_df.groupby(['effort_model', 'bonus', 'distance'], as_index=False)['task_completion_time'].mean()
     effort_models = []
 
     for idx, row in result.iterrows():
