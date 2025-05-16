@@ -12,13 +12,19 @@ def plot_velocities_combinations(boni, effort_models, distances, DIRNAME_SIMULAT
     for bonus in boni:
         for effort_model in effort_models:
             for distance in distances:
-                filename = f"mobl_arms_index_choice_reaction_{bonus}_bonus_{distance}_{effort_model}/evaluate_1"
+                if distance == "no":
+                    filename = f"mobl_arms_index_choice_reaction_{bonus}_{effort_model}/evaluate_1"
+                else:
+                    filename = f"mobl_arms_index_choice_reaction_{bonus}_{distance}_{effort_model}/evaluate_1"
                 filepath = os.path.join(DIRNAME_SIMULATION, f"{filename}")
                 with open(os.path.join(filepath, "state_log.pickle"), "rb") as f:
                     data = pickle.load(f)
 
                 all_velocities, all_times, all_NPEs = plot_first_button(data, effort_model, distance)
                 #times, velocities, NPEs = plot_all_button_combis(data, effort_model, distance)
+
+                RTPs = []
+                sub_movement_counts = []
 
                 for i, vel in enumerate(all_velocities):
                     vel = np.array(vel)
@@ -30,12 +36,13 @@ def plot_velocities_combinations(boni, effort_models, distances, DIRNAME_SIMULAT
                         RTP = (all_times[i][-1] - all_times[i][valleys[0]])/all_times[i][-1]
                         plt.plot(all_times[i][peaks], vel[peaks], "x", label="Maxima")
                         plt.plot(all_times[i][valleys], vel[valleys], "o", label="Minima")
-                        print('Episode: ', i,'Number of Movements:', len(peaks), "RTP: ", RTP, "NPE: ", all_NPEs[i])
-                    else:
-                        print('Episode: ', i,'Number of Movements', len(peaks), "NPE: ", all_NPEs[i])
+                        count = count_submovements(valleys, peaks)
+                        RTPs.append(RTP)
+                        sub_movement_counts.append(count)
 
                     plt.plot(all_times[i], vel)
-                plt.show()
+
+                return RTPs, sub_movement_counts
                 
 def plot_all_button_combis(data, effort_model, distance):
     
@@ -152,5 +159,21 @@ def plot_first_button(data, effort_model, distance):
     plt.clf()
     return all_velocities, all_times, NPEs
     
+def count_submovements(valleys, peaks):
+    if 0 not in valleys:
+        valleys = np.insert(valleys, 0, 0)
+    extrema = np.sort(np.concatenate([peaks, valleys]))
+    types = ['max' if i in peaks else 'min' for i in extrema]
+    count = sum(types[i:i+3] == ['min', 'max', 'min'] for i in range(len(types)-2))
+    return count
+
 if __name__ == '__main__':
-    plot_velocities_combinations(["hit"], ["zero_effort"], ["dist"], "../simulators/")
+
+    effort_models = ["zero_effort", "dc_effort_w1", "jac_effort_w1", "ctc_effort_w1", "armmovementpaper_effort"]
+    RTPs, sub_movement_counts = plot_velocities_combinations(["no_bonus"], ["zero_effort"], ["dist"], "../../simulators/")
+    RTPs2, sub_movement_counts2 = plot_velocities_combinations(["hit_bonus"], effort_models, ["dist"], "../../simulators/")
+    RTPs3, sub_movement_counts3 = plot_velocities_combinations(["hit_bonus_8"], ["zero_effort"], ["no"], "../../simulators/")
+
+    plt.plot()
+
+

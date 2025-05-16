@@ -18,7 +18,7 @@ def plot_velocities_combinations(boni, effort_models, distances, DIRNAME_SIMULAT
                 
                 all_velocities = []
                 all_times = []
-                NPEs = []
+                movement_distances = []
                 
                 for episode, episode_data in data.items():
                     times = episode_data['timestep']
@@ -26,6 +26,7 @@ def plot_velocities_combinations(boni, effort_models, distances, DIRNAME_SIMULAT
                     target_positions = episode_data["target_position"]
                     end_effector_positions = episode_data["hand_2distph_xpos"]
                     new_target_indices = [0] + [i for i, spawned in enumerate(episode_data['target_spawned']) if spawned]
+                    RSs = []
 
                     for i, idx in enumerate(new_target_indices[:-1]):
                         velocities = []
@@ -37,21 +38,24 @@ def plot_velocities_combinations(boni, effort_models, distances, DIRNAME_SIMULAT
                             velocities.append(centroidVelProjection)   
                         
                         smoothed_velocities = savgol_filter(velocities, 11, 3)
-                        #plt.plot(np.array(times[idx:new_target_indices[i+1]]) - times[idx], smoothed_velocities, label=f"{episode}")  
                         all_velocities.append(smoothed_velocities)
                         all_times.append(np.array(times[idx:new_target_indices[i+1]]) - times[idx])
 
-                        total_movement_distance = np.sum(np.linalg.norm(np.diff(end_effector_positions, axis=0)  , axis=1))
-                        shortest_distance = np.linalg.norm(target_positions[idx] - (end_effector_positions[idx] - np.array([0.55, -0.1, 0]))) 
-                        NPE = (total_movement_distance - shortest_distance)/total_movement_distance
-                        NPEs.append(NPE)
+                        if i == 0:
+                            valleys, _ = find_peaks(-smoothed_velocities, prominence=0.05)
+                            if len(valleys)> 1:
+                                total_movement_distance = np.sum(np.linalg.norm(np.diff(np.array(end_effector_positions)[:idx,:], axis=0)  , axis=1))
+                                ballistic_distance = np.sum(np.linalg.norm(np.diff(np.array(end_effector_positions)[:valleys[0],:], axis=0)  , axis=1))
+                                RS = ballistic_distance
+                                RSs.append(RS)
+
 
                 plt.title(f"{effort_model}_{distance}_first_target_all_episodes_speed")
                 plt.xlabel("Time (s)")
                 plt.ylabel("Speed (m/s)")
-                return all_times, all_velocities, NPEs
+                return all_times, all_velocities, RSs
 
-def return_peaks(all_times, all_velocities, NPEs, variant=None):
+def return_peaks(all_times, all_velocities, variant=None):
     i = 0
     submovement_count = []
     RTPs = []
@@ -85,31 +89,8 @@ def return_peaks(all_times, all_velocities, NPEs, variant=None):
     plt.clf()
 
     return RTPs, submovement_count
-                
-if __name__ == '__main__':
-    all_RTPs = {}
-    all_submovement_counts = {}
-    variations = ["horizontal_target_area", "smaller_targets", "reach_envelope", "distractor"]
-    all_variants = ["default"] + variations
-    variant_names = ["Default", "Transverse", "Small targets", "Limits", "Mapping"]
-    values = np.linspace(0, len(all_variants), len(all_variants)) 
-    cmap = plt.get_cmap('plasma')
-    colors = {key: cmap(v / 5) for key, v in zip(all_variants, values)}
-    markers = {"no_bonus": "+", "hit_bonus": "o"}
-    effort_models = ["zero_effort", "dc_effort_w1", "jac_effort_w1", "ctc_effort_w1", "armmovementpaper_effort"]
-    plt.rcParams.update({'font.size': 15})
 
-    all_times, all_velocities, NPEs = plot_velocities_combinations(["hit"], ["zero_effort"], ["dist"], "../../simulators/")
-    RTPs, submovement_count = return_peaks(all_times, all_velocities, NPEs)
-    all_RTPs["default"] = np.mean(RTPs)
-    all_submovement_counts["default"] = np.mean(submovement_count)
-    
-    for v in variations:
-        all_times, all_velocities, NPEs = plot_velocities_combinations(["hit"], ["zero_effort"], ["dist"], "../../simulators/", variant=v)
-        RTPs, submovement_count = return_peaks(all_times, all_velocities, NPEs, variant=v)
-        all_RTPs[v] = np.mean(RTPs)
-        all_submovement_counts[v] = np.mean(submovement_count)
-    
+def plot_RTP(all_RTPs, variant_names, colors):
     fig, ax = plt.subplots(figsize=(6.8, 4))
     i = 0
     for key, value in all_RTPs.items():
@@ -122,6 +103,20 @@ if __name__ == '__main__':
     plt.ylabel("Refinement time proportion (%)", fontsize=15)
     plt.savefig("RTP/RTP_pointing_variants.png")
 
+def plot_RSP(all_RTPs, variant_names, colors):
+    fig, ax = plt.subplots(figsize=(6.8, 4))
+    i = 0
+    for key, value in all_RTPs.items():
+        ax.bar(i, value, label=variant_names[i], color=colors[key])
+        i += 1
+    plt.title("Pointing variations")
+    plt.yticks(fontsize=15)
+    plt.xticks([])
+    plt.xlabel("Task Variant", fontsize=15)
+    plt.ylabel("Refinement space proportion (%)", fontsize=15)
+    plt.savefig("RSP/RSP_pointing_variants.png")
+
+def plot_submovement_count(all_submovement_counts, variant_names, colors):
     fig, ax = plt.subplots(figsize=(6.8, 4))
     i = 0
     for key, value in all_submovement_counts.items():
@@ -134,3 +129,34 @@ if __name__ == '__main__':
     plt.xlabel("Task Variant", fontsize=15)
     plt.ylabel("Number of submovements", fontsize=15)
     plt.savefig("Nr_of_submovements/Nr_of_submovements_pointing_variants.png")
+
+if __name__ == '__main__':
+    all_RTPs = {}
+    all_RSs = {}
+    all_submovement_counts = {}
+    variations = ["horizontal_target_area", "smaller_targets", "reach_envelope", "distractor"]
+    all_variants = ["default"] + variations
+    variant_names = ["Default", "Transverse", "Small targets", "Limits", "Mapping"]
+    values = np.linspace(0, len(all_variants), len(all_variants)) 
+    cmap = plt.get_cmap('plasma')
+    colors = {key: cmap(v / 5) for key, v in zip(all_variants, values)}
+    markers = {"no_bonus": "+", "hit_bonus": "o"}
+    effort_models = ["zero_effort", "dc_effort_w1", "jac_effort_w1", "ctc_effort_w1", "armmovementpaper_effort"]
+    plt.rcParams.update({'font.size': 15})
+
+    all_times, all_velocities, RSs = plot_velocities_combinations(["hit"], ["zero_effort"], ["dist"], "../../simulators/")
+    RTPs, submovement_count = return_peaks(all_times, all_velocities)
+    all_RTPs["default"] = np.mean(RTPs)
+    all_RSs["default"] = np.mean(RSs)
+    all_submovement_counts["default"] = np.mean(submovement_count)
+    
+    for v in variations:
+        all_times, all_velocities, RSs = plot_velocities_combinations(["hit"], ["zero_effort"], ["dist"], "../../simulators/", variant=v)
+        RTPs, submovement_count = return_peaks(all_times, all_velocities, variant=v)
+        all_RTPs[v] = np.mean(RTPs)
+        all_RSs[v] = np.mean(RSs)
+        all_submovement_counts[v] = np.mean(submovement_count)
+    
+    plot_RSP(all_RSs, variant_names, colors)
+    plot_RTP(all_RTPs, variant_names, colors)
+    plot_submovement_count(all_submovement_counts, variant_names, colors)

@@ -130,7 +130,7 @@ def plot_success_rate_choice_reaction(data_df, colors):
             else:
                 color = colors['Distance + Bonus + Effort Model']
 
-        ax.bar(idx, row['success_rate'], color=color)
+        ax.bar(idx, row['success_rate']*100, color=color)
         effort_models.append(row["effort_model"])
 
     plt.rcParams.update({'font.size': fontsize})
