@@ -9,7 +9,7 @@ def create_filename(bonus, distance, effort_model, run_nr, task, variation):
     else:
         filename = f"mobl_arms_index_{task}_{bonus}"
 
-    if distance is not None:
+    if distance != 'no':
         filename += f"_{distance}"
 
     filename += f"_{effort_model}"
@@ -22,10 +22,13 @@ def create_filename(bonus, distance, effort_model, run_nr, task, variation):
 
     return filename
 
-def create_df_remote_control(rewards):
+def create_df_remote_control(rewards, variation=None):
     data_list = []
     for reward in rewards:
-        folder = os.path.abspath(f"../../simulators/mobl_arms_index_remote_driving_{reward}/evaluate_1/")
+        if variation is None:
+            folder = os.path.abspath(f"../../simulators/mobl_arms_index_remote_driving_{reward}/evaluate_1/")
+        else:
+            folder = os.path.abspath(f"../../simulators/mobl_arms_index_remote_driving_{reward}/evaluate_{variation}_1/")
 
         with open(os.path.join(folder, "state_log.pickle"), "rb") as f:
             data = pickle.load(f)
@@ -35,6 +38,8 @@ def create_df_remote_control(rewards):
         distances_to_target_box = []
         joystick_times = []
         target_times = []
+        endpoint_distances_to_joystick = []
+        endpoint_distances_to_target = []
         number_of_episodes = len(data)
         for episode, episode_data in data.items():
 
@@ -44,7 +49,7 @@ def create_df_remote_control(rewards):
                                     for prev, curr in zip(episode_data["car_moving"][episode_data["car_moving"].index(True):][:-1], episode_data["car_moving"][episode_data["car_moving"].index(True):][1:])
                 )
             else:
-                deviation_count = len(episode_data["car_moving"])
+                deviation_count = 0
 
             if int(episode.split('_')[1])>5:
                 break
@@ -53,15 +58,32 @@ def create_df_remote_control(rewards):
             dist_to_target_box = episode_data['dist_car_to_target']
             success = np.any((episode_data['inside_target']))#, np.abs(np.array(x_vel)) <= 0.001))
 
-            if episode_data['car_moving'].count(True) == 0:
+            nr = 0
+            if variation == "depth_direction":
+                nr = 2
+                for i in range(len(episode_data['timestep'])):
+                    if abs((episode_data['car_xpos'][i][1] - 0.15) - (episode_data['target_position'][i][0])) < 0.2:
+                        nr = 1
+                        m_idx = i
+                        print(m_idx)
+                        break
+                if nr != 1:
+                    success = False
+                
+
+            if episode_data['car_moving'].count(True) == 0 or nr == 2:
                 joystick_time = 10
             else:
+                if nr == 1:
+                    print(episode_data['car_moving'].index(True))
                 moving_idx = episode_data['car_moving'].index(True)
                 joystick_time = episode_data['timestep'][moving_idx]
             
-            if episode_data['inside_target'].count(True) == 0:
+            if episode_data['inside_target'].count(True) == 0 or nr == 2:
                 target_time = 10
             else:
+                if nr == 1:
+                    target_time = episode_data['timestep'][m_idx]
                 target_idx = episode_data['inside_target'].index(True)
                 target_time = episode_data['timestep'][target_idx]
 
@@ -71,14 +93,28 @@ def create_df_remote_control(rewards):
             distances_to_joystick.append(sum(dist_to_joystick))
             distances_to_target_box.append(sum(dist_to_target_box))
 
+            if episode_data['car_moving'].count(True)>0:
+                endpoint_distance_to_joystick = 0
+            else:
+                endpoint_distance_to_joystick = dist_to_joystick[-1]
+
+            if episode_data['inside_target'].count(True)>0:
+                endpoint_distance_to_target = 0
+            else:
+                endpoint_distance_to_target = dist_to_target_box[-1] 
+
+            endpoint_distances_to_joystick.append(endpoint_distance_to_joystick)
+            endpoint_distances_to_target.append(endpoint_distance_to_target)
+
+
         cum_dist_to_joystick = np.sum(distances_to_joystick)/5
         cum_dist_target = np.sum(distances_to_target_box)/5
-        data_list.append([reward, np.sum(np.asarray(successes))/len(successes), cum_dist_to_joystick, cum_dist_target, np.mean(joystick_times), np.mean(target_times), deviation_count])
+        data_list.append([reward, np.sum(np.asarray(successes))/len(successes), cum_dist_to_joystick, cum_dist_target, np.mean(joystick_times), np.mean(target_times), deviation_count, np.mean(endpoint_distances_to_joystick), np.mean(endpoint_distances_to_target)])
 
-    df = pd.DataFrame(data_list,columns=["reward", "success", "cum_dist_to_joystick", "cum_dist_to_target","joystick_time", "target_time", "deviation_count"])
+    df = pd.DataFrame(data_list,columns=["reward", "success", "cum_dist_to_joystick", "cum_dist_to_target","joystick_time", "target_time", "deviation_count", "endpoint_distance_to_joystick", "endpoint_distance_to_target"])
     df["reward"] = df["reward"].replace({
-        "distance_and_completion_bonus": "Distance and task completion bonus",
-        "distance_and_completion_bonus_and_joystick_reaching_bonus": "Distance and both task bonuses",
+        "distance_inside_target": "Distance and task completion bonus",
+        "distance_inside_target_joystick": "Distance and both task bonuses",
         "only_distance": "Distance",
         "only_bonus": "Both task bonuses",
     })
@@ -213,10 +249,7 @@ def create_row_pointing(bonus, effort_model, distance, episode, episode_data):
     else:
         end_point_distance_mean = np.mean(end_point_distances)
 
-    if not hit_indices:
-        deviation_count = len(episode_data['inside_target'])
-    else:
-        deviation_count = 0
+    deviation_count = 0
 
     for idx in range(len(hit_indices)):
         if idx == 0:
@@ -311,7 +344,7 @@ def create_row_pointing(bonus, effort_model, distance, episode, episode_data):
 
 def create_row_tracking(bonus, effort_model, distance, episode, episode_data):
     if episode_data['inside_target'].count(True) < 1:
-        deviation_count = len(episode_data['inside_target'])
+        deviation_count = 0
     else:
         inside_target_array = episode_data['inside_target'][episode_data['inside_target'].index(True):]
         deviation_count = sum(

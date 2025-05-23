@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from scipy.stats import linregress
 import matplotlib.lines as mlines
+from matplotlib.patches import Patch
 
 fontsize = 16
 figsize = (7,5)
@@ -19,16 +20,31 @@ effort_map = {
     "armmovementpaper_effort": "EJK"
 }
 
-def plot_distance_to_target(plot_type, legend_title, figname, legend_labels, colors, markers, data_df):
-
+def plot_distance_to_target(plot_type, legend_title, figname, colors, data_df):
+    legend_labels = []
+    for key in colors.keys():
+        legend_labels.append(mlines.Line2D([0], [0], color=colors[key], lw=4, label=key))
     fig, ax = plt.subplots(figsize=figsize)
+
     effort_models = []
     result = data_df.groupby(['effort_model', 'bonus', 'distance'], as_index=False)['distance_to_target'].mean()
+    result.iloc[[4, 5]] = result.iloc[[5, 4]].values
 
     for idx, row in result.iterrows():
-        if row['bonus'] == 8:
-            row['bonus'] = 'hit_bonus'
-        ax.plot(idx, row['distance_to_target'], color=colors[row['distance']], marker=markers[row['bonus']], markersize=12)
+        if row['bonus'] == "no_bonus":
+            color = colors['Distance']
+        elif row['bonus'] == "hit_bonus_8" and row["distance"] == "no" and row["effort_model"] == "zero_effort":
+            color = colors['Bonus']
+        else:
+            if row['effort_model'] == 'zero_effort':
+                color = colors['Distance + Bonus']
+            else:
+                if plot_type == "tracking":
+                    color = colors["Bonus + Effort Model"]
+                else:
+                    color = colors['Distance + Bonus + Effort Model']
+
+        ax.bar(idx, row['distance_to_target'], color=color)
         effort_models.append(row["effort_model"])
 
     plt.rcParams.update({'font.size': fontsize})
@@ -46,16 +62,26 @@ def plot_distance_to_target(plot_type, legend_title, figname, legend_labels, col
     plt.title('Tracking Task')
     plt.savefig(f'distance_to_target_plots/{figname}')
 
-def plot_time_inside_target(plot_type, figname, colors, markers, data_df):
+def plot_time_inside_target(plot_type, figname, colors, data_df):
     
     result = data_df.groupby(['effort_model', 'bonus', 'distance'], as_index=False)['time_inside_target'].mean()
+    result.iloc[[4, 5]] = result.iloc[[5, 4]].values
     effort_models = []
-    plt.figure(figsize=figsize)
+    fig, ax = plt.subplots(figsize=figsize)
     for idx, row in result.iterrows():
-        if row['bonus'] == 8:
-            row['bonus'] = 'hit_bonus'
-        print()
-        plt.plot(idx, row['time_inside_target'], color=colors[row['distance']], marker=markers[row['bonus']], markersize=12)
+        if row['bonus'] == "no_bonus":
+            color = colors['Distance']
+        elif row['bonus'] == "hit_bonus_8" and row["distance"] == "no" and row["effort_model"] == "zero_effort":
+            color = colors['Bonus']
+        else:
+            if row['effort_model'] == 'zero_effort':
+                color = colors['Distance + Bonus']
+            else:
+                if plot_type == "tracking":
+                    color = colors["Bonus + Effort Model"]
+                else:
+                    color = colors['Distance + Bonus + Effort Model']
+        ax.bar(idx, row['time_inside_target'], color=color)
         effort_models.append(row["effort_model"])
 
     plt.rcParams.update({'font.size': fontsize})
@@ -68,20 +94,31 @@ def plot_time_inside_target(plot_type, figname, colors, markers, data_df):
     plt.xticks(ticks=indices, labels=effort_names, fontsize=fontsize)
     plt.savefig(f'time_inside_target_plots/{figname}')
 
-def plot_success_rate(plot_type, figname, legend_labels, colors, markers, data_df, sparse_df=None):
-    plt.figure(figsize=figsize)
+def plot_success_rate(figtitle, figname, colors, data_df):
+    legend_labels = []
+    for key in colors.keys():
+        legend_labels.append(mlines.Line2D([0], [0], color=colors[key], lw=4, label=key))
+    fig, ax = plt.subplots(figsize=figsize)
 
     result = data_df.groupby(['effort_model', 'bonus', 'distance'], as_index=False)['success_rate'].mean()
     effort_models = []
-
+    
     for idx, row in result.iterrows():
-        if row['bonus'] == 8:
-            row['bonus'] = 'hit_bonus'
-        plt.plot(idx, row['success_rate'] / 10 * 100, color=colors[row['distance']], marker=markers[row['bonus']], markersize=12)
+        if row['bonus'] == "no_bonus":
+            color = colors['Distance']
+        elif row['bonus'] == 8:
+            color = colors['Bonus']
+        else:
+            if row['effort_model'] == 'zero_effort':
+                color = colors['Distance + Bonus']
+            else:
+                color = colors['Distance + Bonus + Effort Model']
+
+        ax.bar(idx, row['success_rate']/10*100, color=color)
         effort_models.append(row["effort_model"])
 
     plt.rcParams.update({'font.size': fontsize})
-    plt.title('Pointing Task')
+    plt.title(figtitle)
     plt.yticks(fontsize=fontsize)
     plt.xlabel("Effort model", fontsize=fontsize)
     plt.ylabel("Success rate (%)", fontsize=fontsize)
@@ -91,11 +128,10 @@ def plot_success_rate(plot_type, figname, legend_labels, colors, markers, data_d
     plt.legend(handles=legend_labels, title="Reward components", prop={'size': legend_fontsize})#, bbox_to_anchor=(0.46,0.55))
     plt.savefig(f'success_rate_plots/{figname}')
 
-def plot_success_rate_remote_control(df):
-    plt.figure(figsize=(9, 4))
+def plot_success_rate_remote_control(df, colors):
+    plt.figure(figsize=figsize)
     plt.rcParams.update({'font.size': 16})
-    colors = ['b','g', 'r', 'tab:orange']
-    bars = plt.bar(range(len(df)), df["success"]*100, color=colors)
+    bars = plt.bar(range(len(df)), df["success"] * 100, color=colors)
     plt.ylabel("Success Rate (%)")
     plt.xticks([]) 
     plt.title("Remote Control Task")
@@ -105,7 +141,7 @@ def plot_success_rate_remote_control(df):
         if abs(value) < 0.01:
             plt.text(bar.get_x() + bar.get_width() / 2, value + 0.02, f"{value*100:.1f}%", ha='center', fontsize=20, color=text_color)
 
-    plt.legend(bars, df["reward"], prop={'size': 12},title = 'Reward function')#, loc="upper left"
+    plt.legend(bars, df["reward"], prop={'size': 12},title = 'Reward function')
     plt.savefig('success_rate_plots/success_rate_remote_control.png')
     plt.show()
 
@@ -137,7 +173,7 @@ def plot_success_rate_choice_reaction(data_df, colors):
     plt.title('Choice Reaction Task')
     plt.yticks(fontsize=fontsize)
     plt.xlabel("Effort model", fontsize=fontsize)
-    plt.ylabel("Success rate(%)", fontsize=fontsize)
+    plt.ylabel("Success rate (%)", fontsize=fontsize)
     plt.legend(handles=legend_labels, title="Reward components", prop={'size': 12}, loc = 'lower left')
     effort_names = [effort_map[e] for e in effort_models]
     indices = np.arange(0, len(effort_names), 1)
@@ -146,7 +182,7 @@ def plot_success_rate_choice_reaction(data_df, colors):
     plt.show()
 
 def plot_task_completion_time_choice_reaction(data_df, colors):
-    fig, ax = plt.subplots(figsize=(7, 5))
+    fig, ax = plt.subplots(figsize=figsize)
     result = data_df.groupby(['effort_model', 'bonus', 'distance'], as_index=False)['task_completion_time'].mean()
     effort_models = []
 
@@ -179,12 +215,10 @@ def plot_task_completion_time_choice_reaction(data_df, colors):
     plt.savefig("task_completion_time_plots/task_completion_time_choice_reaction.png")
     plt.show()
 
-def plot_subtask_completion_times(df):
-    rewards = df['reward']
-    colors = ['b','g', 'r', 'tab:orange']
+def plot_subtask_completion_times(df, colors):
     x = np.arange(len(df)) 
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4), sharey=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharey=True)
 
     bars1 = ax1.bar(x, df['joystick_time'], color=colors)
     ax1.set_title('Joystick Time')
@@ -195,43 +229,50 @@ def plot_subtask_completion_times(df):
     ax2.set_title('Target Time')
     ax2.set_xticklabels([])
 
-    from matplotlib.patches import Patch
-    legend_handles = [Patch(color=colors[i], label=rewards[i]) for i in range(len(rewards))]
-    fig.legend(handles=legend_handles, title="Reward", loc='lower center', ncol=len(rewards), bbox_to_anchor=(0.5,-0.15))
-
+    plt.savefig("task_completion_time_plots/subtask_completion_times_remote_control")
     plt.show()
 
-def plot_subtask_cum_distance(df):
-    rewards = df['reward']
-    colors = ['b','g', 'r', 'tab:orange']
+def plot_subtask_end_distance(df, colors):
     x = np.arange(len(df)) 
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4), sharey=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharey=True)
 
-    bars1 = ax1.bar(x, df['cum_dist_to_joystick'], color=colors)
-    ax1.set_title('Joystick Distance')
-    ax1.set_ylabel('Cumulative Distance (m)')
+    ax1.bar(x, df['endpoint_distance_to_joystick'], color=colors)
+    ax1.set_title('Endpoint Distance')
+    ax1.set_ylabel('Distance To Joystick (m)')
     ax1.set_xticklabels([])
 
-    bars2 = ax2.bar(x, df['cum_dist_to_target'], color=colors)
-    ax2.set_title('Target Distance')
+    ax2.bar(x, df['endpoint_distance_to_target'], color=colors)
+    ax2.set_title('Endpoint Distance')
+    ax2.set_ylabel('Distance To Target (m)')
     ax2.set_xticklabels([])
 
-    from matplotlib.patches import Patch
-    legend_handles = [Patch(color=colors[i], label=rewards[i]) for i in range(len(rewards))]
-    fig.legend(handles=legend_handles, title="Reward", loc='lower center', ncol=len(rewards), bbox_to_anchor=(0.5,-0.15))
+    #legend_handles = [Patch(color=colors[i], label=rewards[i]) for i in range(len(rewards))]
+    #fig.legend(handles=legend_handles, title="Reward", loc='lower center', ncol=len(rewards), bbox_to_anchor=(0.5,-0.15))
 
+    plt.savefig("end_point_distance_plots/endpoint_distance_remote_control")
     plt.show()
 
-def plot_deviation_count(plot_type, figname, colors, markers, data_df):
-    plt.figure(figsize=figsize)
+def plot_deviation_count(plot_type, figname, colors, data_df):
+    fig, ax = plt.subplots(figsize=figsize)
     result = data_df.groupby(['effort_model', 'bonus', 'distance'], as_index=False)['deviation_count'].mean()
+    result.iloc[[4, 5]] = result.iloc[[5, 4]].values
     effort_models = []
 
     for idx, row in result.iterrows():
-        if row['bonus'] == 8:
-            row['bonus'] = 'hit_bonus'
-        plt.plot(idx, row['deviation_count'] / 10 * 100, color=colors[row['distance']], marker=markers[row['bonus']], markersize=12)
+        if row['bonus'] == "no_bonus":
+            color = colors['Distance']
+        elif (row['bonus'] == "hit_bonus_8" and row["distance"] == "no" and row["effort_model"] == "zero_effort") or row["bonus"] == 8:
+            color = colors['Bonus']
+        else:
+            if row['effort_model'] == 'zero_effort':
+                color = colors['Distance + Bonus']
+            else:
+                if plot_type == "Tracking":
+                    color = colors["Bonus + Effort Model"]
+                else:
+                    color = colors['Distance + Bonus + Effort Model']
+        ax.bar(idx, row['deviation_count'], color=color)
         effort_models.append(row["effort_model"])
 
     plt.rcParams.update({'font.size': fontsize})
@@ -246,21 +287,19 @@ def plot_deviation_count(plot_type, figname, colors, markers, data_df):
     plt.xticks(ticks=indices, labels=effort_names, fontsize=fontsize)
     plt.savefig(f'deviation_count_plots/{figname}')
 
-def plot_deviation_count_remote_control(figname, data_df):
+def plot_deviation_count_remote_control(figname, data_df, colors):
     
-    colors = ['b','g', 'r', 'tab:orange']
     plt.figure(figsize=figsize)
     for i in range(len(data_df)):
         df = data_df.iloc[i]
-        plt.bar(i, df['deviation_count'], label=df["reward"], color=colors[i])
+        plt.bar(i, df['deviation_count'], color=colors[i])
 
     plt.rcParams.update({'font.size': fontsize})
     plt.yticks(fontsize=fontsize)
     plt.title(f'Remote Control Task')
     plt.xticks([])
     plt.xlabel("Reward", fontsize=fontsize)
-    plt.ylabel("Number of re-entries", fontsize=fontsize)
-    plt.legend(title="Reward")
+    plt.ylabel("Number of restarts", fontsize=fontsize)
     plt.savefig(f'deviation_count_plots/{figname}')
 
 def plot_cum_dist(plot_type, figname, colors, markers, data_df):
@@ -286,14 +325,23 @@ def plot_cum_dist(plot_type, figname, colors, markers, data_df):
     plt.xticks(ticks=indices, labels=effort_names, fontsize=fontsize)
     plt.savefig(f'cumulative_distance_plots/{figname}')
 
-def plot_end_point_dist(plot_type, figname, colors, markers, data_df):
+def plot_end_point_dist(plot_type, figname, colors, data_df):
     result = data_df.groupby(['effort_model', 'bonus', 'distance'], as_index=False)['end_point_distances'].mean()
     effort_models = []
-    plt.figure(figsize=figsize)
+    fig, ax = plt.subplots(figsize=figsize)
     for idx, row in result.iterrows():
+        if row['bonus'] == "no_bonus":
+            color = colors['Distance']
+        elif row['bonus'] == 8:
+            color = colors['Bonus']
+        else:
+            if row['effort_model'] == 'zero_effort':
+                color = colors['Distance + Bonus']
+            else:
+                color = colors['Distance + Bonus + Effort Model']
         if row['bonus'] == 8:
             row['bonus'] = 'hit_bonus'
-        plt.plot(idx, row['end_point_distances'], color=colors[row['distance']], marker=markers[row['bonus']], markersize=markersize)
+        ax.bar(idx, row['end_point_distances'], color=color)
         effort_models.append(row["effort_model"])
 
 
@@ -312,7 +360,7 @@ def plot_end_point_dist(plot_type, figname, colors, markers, data_df):
 def plot_end_point_dist_choice_reaction(plot_type, figname, colors, markers, data_df):
     result = data_df.groupby(['effort_model', 'bonus', 'distance'], as_index=False)['end_point_distances'].mean()
     effort_models = []
-    fig, ax = plt.subplots(figsize=(7, 5))
+    fig, ax = plt.subplots(figsize=figsize)
     for idx, row in result.iterrows():
         if row['bonus'] == "no_bonus":
             color = colors['Distance']
@@ -340,38 +388,6 @@ def plot_end_point_dist_choice_reaction(plot_type, figname, colors, markers, dat
     indices = np.arange(0, len(effort_names), 1)
     plt.xticks(ticks=indices, labels=effort_names, fontsize=fontsize)
     plt.savefig(f'end_point_distance_plots/{figname}', bbox_inches="tight")
-
-def plot_fittslaw(data_df):
-
-    all_IDs = []
-    all_durations = []
-
-    for _, row in data_df.iterrows():
-        target_radiuses = np.array(row["target_radiuses"])
-        start_distances = np.array(row["start_distances"])
-        durations = np.array(row["durations_to_inside_target"])
-
-        if len(target_radiuses) == len(start_distances) == len(durations):
-            ID = np.log2(start_distances / target_radiuses + 1)
-            all_IDs.extend(ID)
-            all_durations.extend(durations)
-
-    all_IDs = np.array(all_IDs)
-    all_durations = np.array(all_durations)
-
-    # Fit mit linearer Regression
-    slope, intercept, r_value, p_value, std_err = linregress(all_IDs, all_durations)
-
-    plt.figure(figsize=(8, 5))
-    plt.scatter(all_IDs, all_durations, alpha=0.5, label="Messdaten")
-    plt.plot(np.sort(all_IDs), intercept + slope * np.sort(all_IDs), color="red", label=f"Fit: T = {intercept:.2f} + {slope:.2f}·ID")
-    plt.xlabel("ID (bits)")
-    plt.ylabel("MT (s)")
-    plt.title(f"Fitts' Law Fit:\n  Intercept (a): {intercept:.3f}\n  Slope (b): {slope:.3f}\n  R²: {r_value**2:.3f}")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
 
 def moved_indices(plot_type, bonus, distance, effort_model):
     if plot_type == "tracking" or plot_type == "pointing" or plot_type == "choice_reaction":
@@ -514,14 +530,21 @@ def calculate_task_completion_times_df(data_df, number_of_episodes):
     return r_df
 
 def plot_task_completion_time_pointing(data_df, colors):
-    fig, ax = plt.subplots(figsize=(7, 5))
+    fig, ax = plt.subplots(figsize=figsize)
     result = data_df.groupby(['effort_model', 'bonus', 'distance'], as_index=False)['task_completion_time'].mean()
     effort_models = []
 
     for idx, row in result.iterrows():
-        if row['bonus'] == 8:
-            row['bonus'] = 'hit_bonus'
-        ax.bar(idx, row['task_completion_time'], color=colors[row['distance']],  width=0.2)
+        if row['bonus'] == "no_bonus":
+            color = colors['Distance']
+        elif row['bonus'] == 8:
+            color = colors['Bonus']
+        else:
+            if row['effort_model'] == 'zero_effort':
+                color = colors['Distance + Bonus']
+            else:
+                color = colors['Distance + Bonus + Effort Model']
+        ax.bar(idx, row['task_completion_time'], color=color)
         effort_models.append(row["effort_model"])
 
     ax.tick_params(axis='y', labelsize=fontsize)

@@ -19,61 +19,49 @@ def path_to_event_file(event_folder):
             (os.path.join(latest_ppo_folder, f) for f in os.listdir(latest_ppo_folder)),
             key=os.path.getmtime, default=None
         )
-        if event_file:
-            print(f"Event file: : {event_file}")
-        else:
-            print("No event file found.")
-    else:
-        print("No PPO folder found.")
 
     return event_file
 
-def read_event_file(event_folder):
+def read_event_file(event_folder, steps_limit = 35000000):
 
     event_file = path_to_event_file(event_folder)
     rewards = []
     steps = []
+    print(event_file)
     
     for e in tf.compat.v1.train.summary_iterator(event_file):
         for v in e.summary.value:
-            if v.tag == 'rollout/ep_rew_mean' and e.step <= 35000000: 
+            if v.tag == 'rollout/ep_rew_mean' and e.step <= steps_limit: 
                 #print(f"rollout/ep_rew_mean at step {e.step}: {v.simple_value}")
                 rewards.append(v.simple_value)
                 steps.append(e.step) 
     return steps, rewards
 
-def print_reward_threshholds(steps, rewards):
+def calculate_reward_thresholds(steps, rewards, thresholds):
+
     max_reward = max(rewards)
-    threshold2_index = index_at_threshold(rewards, 0.2 * max_reward)
-    threshold5_index = index_at_threshold(rewards, 0.5 * max_reward)
-    threshold9_index = index_at_threshold(rewards, 0.9 * max_reward)
-    max_index = index_at_threshold(rewards, max_reward)
-    print(f'Threshold Index 20%: {steps[threshold2_index]} steps, 50%: {steps[threshold5_index]} steps, 90%: {steps[threshold9_index]} steps')
-    #print(f'Maximum Index: {steps[max_index]} steps')
+    min_reward = min(rewards)
+    reward_span = abs(max_reward - min_reward)
+
+    threshold_steps = {}
+    for t in thresholds:
+        t_idx = index_at_threshold(rewards, min_reward + (t * reward_span))
+        threshold_steps[t] = steps[t_idx]
+        print(f"Threshold {int(t*100)}% after {steps[t_idx]} steps")
 
     normalized_rewards = (np.array(rewards) - min(rewards)) / (max(rewards) - min(rewards))
     auc_normalized = np.trapezoid(normalized_rewards)
     print(f'Area under the curve: {auc_normalized}')
 
-    sub_rewards = rewards[max_index:]
-    mean_reward = np.mean(sub_rewards)
-    max_deviation = max(abs(sub_rewards - mean_reward))
-    print(f'Mean value starting from convergence point: {mean_reward} and max deviation: {max_deviation}')
+    return threshold_steps, auc_normalized
 
 def variance_last_steps(steps, rewards):
-    steps_idx = steps.index(30000000)
-    sub_rewards = rewards[steps_idx:]
-
+    steps_idx = len(steps)-126
+    sub_rewards = (np.array(rewards[steps_idx:])  - min(rewards)) / (max(rewards) - min(rewards))
     variance = np.var(sub_rewards)
+    print(len(sub_rewards), np.max(sub_rewards), np.min(sub_rewards))
     print(f"Variance from 30M steps on: {variance}")
-
-    x = np.arange(len(sub_rewards))
-    slope, intercept, r_value, p_value, std_err = linregress(x, sub_rewards)
-
-    if slope > 0:
-        print(f"Reward increases in trend (slope = {slope:.4f})")
-    else:
-        print(f"Reward does not increase in trend (slope = {slope:.4f})")
+    return variance
 
 def plot_reward(steps, rewards, task, figname):
     steps, rewards = zip(*sorted(zip(steps, rewards)))
